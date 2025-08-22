@@ -1,0 +1,34 @@
+# /breast-cancer-api/requirements.txt
+
+# Core dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+opencv-python-headless>=4.5.0
+Pillow>=9.0.0
+scikit-image>=0.19.0
+scikit-learn>=1.0.0
+pandas>=1.3.0
+
+# For model architecture
+segmentation-models-pytorch>=0.3.0
+timm>=0.6.0
+
+# For data processing
+albumentations>=1.3.0
+
+# For API and serving
+fastapi>=0.95.0
+uvicorn>=0.21.0
+python-multipart>=0.0.6
+pydantic>=1.10.0
+
+# For development and testing
+pytest>=7.0.0
+black>=22.0.0
+isort>=5.10.0
+flake8>=4.0.0
+
+# For documentation
+sphinx>=5.0.0
+sphinx-rtd-theme>=1.0.0
