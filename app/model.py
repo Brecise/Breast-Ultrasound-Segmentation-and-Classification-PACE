@@ -5,7 +5,28 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 from typing import Dict, Tuple, Optional, Union
+import segmentation_models_pytorch as smp
 
+class DiceLoss(nn.Module):
+    """Dice Loss for segmentation tasks."""
+    def __init__(self, mode='binary'):
+        super(DiceLoss, self).__init__()
+        self.mode = mode
+        
+    def forward(self, pred, target):
+        smooth = 1.0
+        if self.mode == 'binary':
+            pred = torch.sigmoid(pred)
+        
+        # Flatten predictions and targets
+        pred_flat = pred.contiguous().view(-1)
+        target_flat = target.contiguous().view(-1)
+        
+        intersection = (pred_flat * target_flat).sum()
+        union = pred_flat.sum() + target_flat.sum()
+        
+        dice = (2.0 * intersection + smooth) / (union + smooth)
+        return 1 - dice
 
 class MultiTaskModel(nn.Module):
     """
@@ -149,3 +170,53 @@ class MultiTaskModel(nn.Module):
                 result['classification'] = F.softmax(outputs['classification'], dim=1)
             
             return result
+
+class MultiTaskUnet(nn.Module):
+    """
+    A U-Net based model with two heads:
+    1. Segmentation Head: Outputs a pixel-wise mask (using the U-Net++ decoder).
+    2. Classification Head: Outputs a class prediction (benign, malignant, normal).
+    """
+    def __init__(self, encoder_name, encoder_weights, in_channels, num_classes):
+        super(MultiTaskUnet, self).__init__()
+
+        # --- Segmentation Branch ---
+        self.segmentation_model = smp.UnetPlusPlus(
+            encoder_name=encoder_name,
+            encoder_weights=encoder_weights,
+            in_channels=in_channels,
+            classes=1,  # Binary segmentation
+            activation=None
+        )
+
+        # --- Classification Branch ---
+        # Get the number of output channels from the encoder's last stage
+        encoder_out_channels = self.segmentation_model.encoder.out_channels[-1]
+        
+        self.classification_head = nn.Sequential(
+            nn.AdaptiveAvgPool2d(output_size=1),
+            nn.Flatten(),
+            nn.Linear(encoder_out_channels, num_classes)
+        )
+
+    def forward(self, images, masks=None, labels=None):
+        # --- Segmentation Path ---
+        segmentation_logits = self.segmentation_model(images)
+
+        # --- Classification Path ---
+        encoder_features = self.segmentation_model.encoder(images)[-1]
+        classification_logits = self.classification_head(encoder_features)
+
+        # --- Loss Calculation (during training) ---
+        if masks is not None and labels is not None:
+            seg_loss_dice = DiceLoss(mode='binary')(segmentation_logits, masks)
+            seg_loss_bce = nn.BCEWithLogitsLoss()(segmentation_logits, masks)
+            segmentation_loss = seg_loss_dice + seg_loss_bce
+
+            classification_loss = nn.CrossEntropyLoss()(classification_logits, labels)
+            total_loss = segmentation_loss + classification_loss
+
+            return segmentation_logits, classification_logits, total_loss
+
+        # During inference, just return the predictions
+        return segmentation_logits, classification_logits

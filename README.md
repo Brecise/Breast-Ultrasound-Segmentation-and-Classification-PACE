@@ -1,84 +1,75 @@
-# PACE 2025 – Breast Cancer Detection System
+# Breast Cancer Detection System
 
- **Final Submission Deadline**: 24th August 2025 (23:59 GMT)
-
-##  Project Overview
+## Project Overview
 This Docker container runs a multi-task deep learning model for breast ultrasound image analysis that can perform:
 - **Segmentation** – Generates binary masks for ultrasound images
 - **Classification** – Classifies ultrasound images into predefined categories
+- **Both** – Performs both segmentation and classification in one go
 
-##  Project Structure
+## Project Structure
 ```
 .
 ├── Dockerfile
 ├── requirements.txt
-├── main.py                 # Main inference script
-├── model.py               # Model architecture
-├── checkpoints/           # Model weights directory
-│   └── best_model.pth    # Trained model checkpoint
-└── tools/                # Preprocessing and postprocessing utilities
-    ├── preprocess.py
-    └── postprocess.py
+├── app/
+│   ├── __init__.py
+│   ├── main.py           # Main inference script
+│   ├── model.py          # Model architecture
+│   ├── preprocess.py     # Image preprocessing
+│   ├── postprocess.py    # Postprocessing utilities
+│   └── schemas.py        # Data models
+├── checkpoints/          # Model weights directory
+│   └── best_model.pt     # Trained model checkpoint
+└── test_data/
+    ├── input/           # Input images
+    └── output/          # Output directory for results
 ```
 
-##  Quick Start
+## Quick Start
 
 ### Prerequisites
 - Docker 20.10.0 or higher
-- Git LFS (for model weights)
-- NVIDIA Container Toolkit (for GPU support)
+- 4GB+ free disk space
+- 8GB+ RAM recommended
 
-### 1. Install Docker
-First, install Docker Desktop (available for Windows, macOS, and Linux):
-[Download Docker](https://www.docker.com/get-started/)
-
-Verify Docker is installed:
+### 1. Build the Docker Image
 ```bash
-docker --version
+docker build -t breast-cancer-detection .
 ```
 
-### 2. Build the Docker Image
+### 2. Prepare Data
+Create input and output directories:
 ```bash
-docker build -t pace2025-breast-cancer .
+mkdir -p test_data/input test_data/output
 ```
 
-### 3. Run the Docker Container
+Place your ultrasound images in the `test_data/input` directory.
 
-#### For Segmentation Task (GPU)
+### 3. Run the Container
+
+#### For CPU (Default)
 ```bash
-docker run --gpus all --rm \
-  -v $(pwd)/input:/input:ro \
-  -v $(pwd)/output:/output \
-  -it pace2025-breast-cancer python main.py -i /input -o /output -t seg -d gpu
+docker run -v $(pwd)/test_data/input:/app/test_data/input \
+           -v $(pwd)/test_data/output:/app/test_data/output \
+           -p 8000:8000 \
+           breast-cancer-detection \
+           --input /app/test_data/input \
+           --output /app/test_data/output \
+           --device cpu
 ```
 
-#### For Classification Task (GPU)
-```bash
-docker run --gpus all --rm \
-  -v $(pwd)/input:/input:ro \
-  -v $(pwd)/output:/output \
-  -it pace2025-breast-cancer python main.py -i /input -o /output -t cls -d gpu
-```
-
-#### For CPU-only Systems
-```bash
-docker run --rm \
-  -v $(pwd)/input:/input:ro \
-  -v $(pwd)/output:/output \
-  -it pace2025-breast-cancer python main.py -i /input -o /output -t seg -d cpu
-```
-
-##  Command-Line Arguments
+### Command-Line Arguments
 | Argument | Description | Options | Default |
 |----------|-------------|----------|---------|
 | `-i, --input` | Path to input directory containing images | Directory path | Required |
 | `-o, --output` | Path to output directory | Directory path | Required |
-| `-t, --task` | Task to perform | `seg` (segmentation), `cls` (classification) | `seg` |
-| `-d, --device` | Device to use | `cpu`, `gpu` | `gpu` |
+| `-m, --model` | Path to model checkpoint | File path | `app/checkpoints/best_model.pt` |
+| `-t, --task` | Task to perform | `seg`, `cls`, `both` | `both` |
+| `-d, --device` | Device to use | `cpu`, `cuda` | `cpu` |
 
-##  Output Structure
+## Output Structure
 
-### Segmentation Task Output
+### Segmentation Output
 ```
 output_directory/
 └── segmentation/
@@ -87,34 +78,24 @@ output_directory/
     └── ...
 ```
 
-### Classification Task Output
+### Classification Output
 ```
 output_directory/
 └── classification/
-    └── predictions.csv    # Contains image_id, label columns
+    └── predictions.csv    # Contains image_id, label, confidence
 ```
 
-Example `predictions.csv`:
-```csv
-image_id,label
-PACE_00001_000_BUS,Normal
-PACE_00002_001_BRE,Benign
+### Combined Output (default)
+```
+output_directory/
+├── segmentation/
+│   └── ...
+└── classification/
+    └── predictions.csv
 ```
 
-##  Submission Details
-- **Team Name**: MedViewPro
-- **Team Members**: 
-  - Goodness Nwokebu (Team Lead)
-  - Kevin Obote (Data Scientist)
-  - Paul Ndirangu (ML Engineer)
-- **Model Type**: Multi-task CNN with attention
-- **Input Format**: PNG ultrasound images
-- **Output Formats**: 
-  - Segmentation: PNG masks
-  - Classification: CSV file with predictions
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-##  Contact
-For any questions, please contact: paulmwaura254@gmail.com
-
----
-*This submission is for the PACE 2025 Challenge. All rights reserved.*
+## Support
+For support, please open an issue in the project repository.

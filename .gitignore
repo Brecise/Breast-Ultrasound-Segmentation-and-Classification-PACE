@@ -50,3 +50,6 @@ env/
 weights/*
 !weights/best_multitask_model.pt
 !weights/.gitkeep
+
+# Test data
+test_data/output/
